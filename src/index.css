@@ -1,13 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom background gradients */
+.purple-gradient-bg {
+  background: linear-gradient(135deg, #4a1d96 0%, #312e81 50%, #1e1b4b 100%);
+}
+
+.light-gradient-bg {
+  background: linear-gradient(135deg, #ede9fe 0%, #e0e7ff 50%, #dbeafe 100%);
+}
+
+/* Input gradients */
+.input-gradient-dark {
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.7), rgba(17, 24, 39, 0.6));
+}
+
+.input-gradient-light {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.95));
+}
+
+/* Button gradients */
+.button-gradient-dark {
+  background: linear-gradient(90deg, #4f46e5 0%, #6366f1 100%);
+}
+
+.button-gradient-light {
+  background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+}
+
+/* Gradient borders */
+.gradient-border-dark {
+  border: 2px solid transparent;
+  background-clip: padding-box, border-box;
+  background-origin: padding-box, border-box;
+  background-image: 
+    linear-gradient(to bottom, rgba(17, 24, 39, 0.7), rgba(17, 24, 39, 0.6)),
+    linear-gradient(90deg, #4f46e5, #8b5cf6);
+}
+
+.gradient-border-light {
+  border: 2px solid transparent;
+  background-clip: padding-box, border-box;
+  background-origin: padding-box, border-box;
+  background-image: 
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.95)),
+    linear-gradient(90deg, #6366f1, #a78bfa);
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #4a1d96 0%, #312e81 50%, #4c1d95 100%);
+  min-height: 100vh;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Custom classes for Reputy.io styling */
+.reputy-gradient {
+  background: linear-gradient(135deg, #4a1d96 0%, #312e81 50%, #4c1d95 100%);
+}
+
+.text-input-gradient {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin: 0 3px;
+  transition: all 0.3s ease;
+}
+
+.progress-dot-active {
+  background-color: #818cf8;
+}
+
+.progress-dot-complete {
+  background-color: #10b981;
+}
+
+.progress-dot-inactive {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.card-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+/* Button styling */
+.btn-primary {
+  background-color: #6366f1;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #4f46e5;
+}
+
+/* Animation for loading */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }

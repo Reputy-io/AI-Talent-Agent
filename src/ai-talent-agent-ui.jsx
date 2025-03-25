@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Sun, Moon, Send, User, Bot, MessageSquare, FileText } from 'lucide-react';
+import { Sun, Moon, Send, User, Bot, MessageSquare, FileText, MessageCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { submitQuestionnaire, sendChatMessage } from './services/apiService';
 
 const ReputyTalentAgent = () => {
@@ -14,7 +14,9 @@ const ReputyTalentAgent = () => {
   const [showChat, setShowChat] = useState(false);
   
   // Chat state
-  const [chatMessages, setChatMessages] = useState([]);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'Hello! I\'m your AI talent agent. I\'ve analyzed your profile and can help with specific questions about your career development. What would you like to know?' }
+  ]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef(null);
@@ -141,6 +143,331 @@ const ReputyTalentAgent = () => {
     return structuredAnalysis;
   };
 
+  // Function to format the analysis text with proper markdown
+  const formatAnalysisText = (text) => {
+    if (!text) return '';
+    
+    // Define all section headers that should be in the final output
+    const sectionHeaders = [
+      'Summary of the Professional Profile',
+      'Key Strengths and Unique Selling Points',
+      'Areas for Professional Development',
+      'Specific Recommendations for Improving Their CV/Resume',
+      'Job Search Strategy and Potential Roles to Target',
+      'Interview Preparation Advice',
+      'Long-term Career Development Plan'
+    ];
+    
+    // Extract sections with actual content
+    const extractedSections = {};
+    
+    // First, clean up the text by removing prompt instructions
+    const promptPatterns = [
+      // Prompt headers and instructions
+      /You are a professional career coach and talent agent[\s\S]*?following sections:/g,
+      /User Profile Information:[\s\S]*?Instructions:/g,
+      /Provide a comprehensive career analysis[\s\S]*?sections:/g,
+      /Career Analysis and Advice/g,
+      /Instructions:/g,
+      /Please analyze the following information[\s\S]*?advice\./g,
+      /Your Career Analysis/g,
+      
+      // Section descriptions from the prompt template
+      /Provide a concise summary of their background[^\n]*\./g,
+      /Identify 3-5 key strengths[^\n]*\./g,
+      /Suggest 3-4 specific areas[^\n]*\./g,
+      /Provide actionable advice[^\n]*\./g,
+      /Recommend specific job titles[^\n]*\./g,
+      /Provide tailored advice for[^\n]*\./g,
+      /Suggest a 3-5 year career[^\n]*\./g,
+      
+      // Additional prompt elements that might appear
+      /Write in a clear, professional tone\./g,
+      /Be specific and personalized[^\n]*\./g,
+      /Focus on actionable advice[^\n]*\./g,
+      /Do not include any section numbers[^\n]*\./g
+    ];
+    
+    // Apply all cleaning patterns
+    let cleanedText = text;
+    for (const pattern of promptPatterns) {
+      cleanedText = cleanedText.replace(pattern, '');
+    }
+    
+    // Remove markdown formatting artifacts
+    cleanedText = cleanedText
+      .replace(/^\s*#\s*/gm, '') // Remove standalone # characters
+      .replace(/^\s*##\s*/gm, '') // Remove ## headers
+      .replace(/^\s*\d+\.\s*/gm, ''); // Remove numbered lists at the start of lines
+    
+    // Find the last occurrence of each section header and extract content after it
+    for (const section of sectionHeaders) {
+      // Find all occurrences of this section
+      let lastIndex = -1;
+      let index = cleanedText.indexOf(section);
+      
+      while (index !== -1) {
+        lastIndex = index;
+        index = cleanedText.indexOf(section, lastIndex + 1);
+      }
+      
+      if (lastIndex !== -1) {
+        // Find the end of this section (start of next section or end of text)
+        let sectionEnd = cleanedText.length;
+        for (const nextSection of sectionHeaders) {
+          if (nextSection !== section) {
+            const nextSectionIndex = cleanedText.indexOf(nextSection, lastIndex + section.length);
+            if (nextSectionIndex !== -1 && nextSectionIndex < sectionEnd) {
+              sectionEnd = nextSectionIndex;
+            }
+          }
+        }
+        
+        // Extract the content for this section
+        const sectionContent = cleanedText.substring(lastIndex + section.length, sectionEnd).trim();
+        
+        // Only save if there's actual content (not just whitespace or empty)
+        if (sectionContent && !/^\s*$/.test(sectionContent)) {
+          extractedSections[section] = sectionContent;
+        }
+      }
+    }
+    
+    // Build the final formatted text with only sections that have content
+    let formattedText = '';
+    
+    // Add each section with content in the correct order
+    for (const section of sectionHeaders) {
+      if (extractedSections[section]) {
+        // Add the styled header
+        formattedText += `<h2 class="text-2xl font-bold mt-8 mb-4 ${darkMode ? 'text-indigo-300' : 'text-indigo-700'} border-b ${darkMode ? 'border-indigo-700' : 'border-indigo-300'} pb-2">${section}</h2>\n`;
+        
+        // Add the content with proper formatting
+        let content = extractedSections[section];
+        
+        // Format bullet points
+        content = content.replace(/^\s*-\s*(.*)/gm, `<li class="ml-5 list-disc mb-2 ${darkMode ? '' : 'text-gray-800'}">$1</li>`);
+        
+        // Format numbered lists
+        content = content.replace(/^\s*\d+\.\s*(.*)/gm, `<li class="ml-5 list-decimal mb-2 ${darkMode ? '' : 'text-gray-800'}">$1</li>`);
+        
+        // Format bold text
+        content = content.replace(/\*\*(.*?)\*\*/g, `<strong class="font-semibold ${darkMode ? 'text-indigo-200' : 'text-indigo-700'}">$1</strong>`);
+        
+        // Add the formatted content
+        formattedText += content + '\n\n';
+      }
+    }
+    
+    // Format any remaining markdown elements
+    formattedText = formattedText
+      // Handle any remaining headers
+      .replace(/## (.*)/g, '<h3 class="text-xl font-bold mt-6 mb-3 text-indigo-300">$1</h3>')
+      .replace(/### (.*)/g, '<h4 class="text-lg font-semibold mt-5 mb-2 text-indigo-200">$1</h4>')
+      // Paragraphs
+      .replace(/\n\n/g, '</p><p class="my-3">')
+      .replace(/\n/g, '<br/>');
+    
+    // Wrap in paragraph tags
+    formattedText = '<p class="my-3">' + formattedText + '</p>';
+    
+    return formattedText;
+  };
+  
+  // Function to format chat messages with proper markdown
+  const formatChatMessage = (text) => {
+    if (!text) return '';
+    
+    // Remove any redundant headers or formatting that might come from the API
+    let cleanedText = text
+      .replace(/^\s*#\s*/gm, '') // Remove standalone # characters
+      .replace(/^\s*##\s*/gm, '') // Remove ## headers
+      .replace(/^\s*\d+\.\s*/gm, ''); // Remove numbered lists at the start of lines
+    
+    // Replace markdown headers with styled elements
+    let formattedText = cleanedText
+      // Handle headers
+      .replace(/## (.*)/g, `<h3 class="text-lg font-bold mt-4 mb-2 ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}">$1</h3>`)
+      .replace(/### (.*)/g, `<h4 class="text-base font-bold mt-3 mb-2 ${darkMode ? 'text-indigo-300' : 'text-indigo-700'}">$1</h4>`)
+      // Format lists
+      .replace(/- (.*)/g, `<li class="ml-4 list-disc mb-1 ${darkMode ? '' : 'text-gray-800'}">$1</li>`)
+      .replace(/\d+\. (.*)/g, `<li class="ml-4 list-decimal mb-1 ${darkMode ? '' : 'text-gray-800'}">$1</li>`)
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, `<strong class="font-semibold ${darkMode ? 'text-indigo-200' : 'text-indigo-700'}">$1</strong>`)
+      // Paragraphs
+      .replace(/\n\n/g, `</p><p class="my-2 ${darkMode ? '' : 'text-gray-800'}">`)
+      .replace(/\n/g, '<br/>');
+    
+    // Wrap in paragraph tags
+    formattedText = `<p class="my-2 ${darkMode ? '' : 'text-gray-800'}">` + formattedText + '</p>';
+    
+    return formattedText;
+  };
+
+  // Component to display the analysis with proper formatting
+  const AnalysisDisplay = ({ analysis }) => {
+    return (
+      <div className={`${themeStyles.card} rounded-lg p-8 border ${themeStyles.cardBorder} backdrop-blur-sm max-w-4xl mx-auto`}>
+        <h1 className={`text-3xl font-bold mb-8 text-center ${darkMode ? 'text-white' : 'text-gray-900'}`}>Your Career Analysis</h1>
+        
+        <div className="overflow-auto" style={{ maxHeight: '70vh' }}>
+          <div 
+            className={`prose ${darkMode ? 'prose-invert' : ''} max-w-none`}
+            dangerouslySetInnerHTML={{ __html: formatAnalysisText(analysis) }}
+          />
+        </div>
+        
+        <div className="mt-10 flex justify-center">
+          <button 
+            onClick={() => setShowChat(true)}
+            className={`${themeStyles.buttonPrimary} px-6 py-3 rounded-md flex items-center space-x-2 shadow-lg hover:shadow-xl transition-all`}
+          >
+            <MessageCircle size={20} />
+            <span>Chat with Your Talent Agent</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Chat component with improved styling
+  const ChatInterface = ({ analysis, onBack, messages, onSendMessage, isTyping }) => {
+    const [input, setInput] = useState('');
+    const messagesEndRef = useRef(null);
+    
+    // Scroll to bottom of chat when messages change
+    useEffect(() => {
+      scrollToBottom();
+    }, [messages]);
+    
+    const scrollToBottom = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+    
+    const handleSendMessage = async () => {
+      if (input.trim() === '') return;
+      
+      const userMessage = input.trim();
+      setInput('');
+      
+      // Get answers from context
+      const context = {
+        userProfile: extractUserProfile(),
+        analysis: analysis
+      };
+      
+      // Send message to parent component to handle
+      await onSendMessage(userMessage, context);
+    };
+    
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    };
+    
+    const extractUserProfile = () => {
+      // Extract user profile from answers for context
+      return Object.entries(answers)
+        .map(([question, answer]) => `${question}: ${answer}`)
+        .join('\n');
+    };
+    
+    return (
+      <div className={`${themeStyles.card} rounded-lg border ${themeStyles.cardBorder} backdrop-blur-sm max-w-4xl mx-auto h-[80vh] flex flex-col`}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h2 className="text-xl font-bold">Chat with Your Talent Agent</h2>
+          <button 
+            onClick={onBack}
+            className="p-2 rounded-full hover:bg-gray-700"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        </div>
+        
+        <div className="flex-grow overflow-y-auto p-4 space-y-4">
+          {messages.map((msg, index) => (
+            <div 
+              key={index} 
+              className={`flex items-start space-x-2 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse' : 'flex-row'}`}
+            >
+              {/* Icon */}
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-indigo-600' : themeStyles.cardBorder}`}>
+                <img
+                  src={msg.role === 'user' ? '/user-icon.svg' : '/bot-icon.svg'}
+                  alt={msg.role === 'user' ? 'User' : 'AI'}
+                  className="w-5 h-5"
+                  style={{ filter: msg.role === 'user' ? 'brightness(0) invert(1)' : '' }}
+                />
+              </div>
+              
+              {/* Message */}
+              <div 
+                className={`max-w-[80%] rounded-lg p-3 ${
+                  msg.role === 'user' 
+                    ? 'bg-indigo-600 text-white' 
+                    : `${themeStyles.card} border ${themeStyles.cardBorder}`
+                }`}
+              >
+                <div className={`prose ${darkMode ? 'prose-invert' : ''} max-w-none text-sm`}>
+                  {msg.role === 'assistant' 
+                    ? <div dangerouslySetInnerHTML={{ __html: formatChatMessage(msg.content) }} />
+                    : msg.content
+                  }
+                </div>
+              </div>
+            </div>
+          ))}
+          
+          {isTyping && (
+            <div className="flex items-start space-x-2">
+              {/* Bot Icon */}
+              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${themeStyles.cardBorder}`}>
+                <img
+                  src="/bot-icon.svg"
+                  alt="AI"
+                  className="w-5 h-5"
+                />
+              </div>
+              
+              {/* Typing Indicator */}
+              <div className={`${themeStyles.card} border ${themeStyles.cardBorder} rounded-lg p-3`}>
+                <div className="flex space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '0ms'}}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '150ms'}}></div>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{animationDelay: '300ms'}}></div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+        
+        <div className="p-4 border-t border-gray-700">
+          <div className="flex space-x-2">
+            <textarea
+              className={`flex-grow p-3 rounded-lg ${themeStyles.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none`}
+              placeholder="Type your message..."
+              rows={2}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+            />
+            <button
+              className={`${themeStyles.buttonPrimary} px-4 rounded-lg flex items-center justify-center`}
+              onClick={handleSendMessage}
+              disabled={input.trim() === '' || isTyping}
+            >
+              <Send size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // Handle sending a chat message
   const handleSendMessage = async () => {
     if (chatInput.trim() === '') return;
@@ -222,6 +549,12 @@ const ReputyTalentAgent = () => {
     }
   };
 
+  const handlePrevious = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -247,30 +580,54 @@ const ReputyTalentAgent = () => {
     setDarkMode(!darkMode);
   };
 
-  // Theme-based styles
+  // Theme styles based on dark/light mode
   const themeStyles = {
+    // Background styles
     background: darkMode 
-      ? 'bg-gradient-to-br from-purple-950 via-fuchsia-900 to-indigo-900' 
-      : 'bg-gradient-to-br from-purple-100 via-white to-indigo-100',
-    text: darkMode ? 'text-white' : 'text-gray-800',
-    subtext: darkMode ? 'text-gray-300' : 'text-gray-600',
-    mutedText: darkMode ? 'text-gray-400' : 'text-gray-500',
-    card: darkMode ? 'bg-gray-800 bg-opacity-50' : 'bg-white bg-opacity-80',
-    cardBorder: darkMode ? 'border-purple-700' : 'border-indigo-200',
-    input: darkMode 
-      ? 'bg-gray-900 border-gray-700 text-white placeholder-gray-500' 
-      : 'bg-white border-purple-300 text-gray-800 placeholder-gray-400',
+      ? 'purple-gradient-bg' 
+      : 'light-gradient-bg',
+    
+    // Gradient backgrounds
+    gradientBg: darkMode 
+      ? 'purple-gradient-bg' 
+      : 'light-gradient-bg',
+    
+    // Header gradient
+    headerGradient: darkMode 
+      ? 'bg-gradient-to-r from-purple-800 to-purple-900' 
+      : 'bg-gradient-to-r from-indigo-500 to-purple-400',
+    
+    // Card styles
+    card: darkMode 
+      ? 'bg-gray-900 bg-opacity-40 text-white' 
+      : 'bg-white text-gray-800 shadow-sm',
+    
+    cardBorder: darkMode 
+      ? 'border-purple-800 border-opacity-30' 
+      : 'border-indigo-100',
+    
+    // Text colors
+    text: darkMode 
+      ? 'text-white' 
+      : 'text-gray-900',
+    
+    mutedText: darkMode 
+      ? 'text-gray-300' 
+      : 'text-indigo-900',
+    
+    // Button styles
     buttonPrimary: darkMode 
-      ? 'bg-fuchsia-600 hover:bg-fuchsia-700 text-white' 
-      : 'bg-fuchsia-600 hover:bg-fuchsia-700 text-white',
+      ? 'button-gradient-dark hover:opacity-90 text-white' 
+      : 'button-gradient-light hover:opacity-90 text-white',
+    
     buttonSecondary: darkMode 
-      ? 'bg-gray-700 hover:bg-gray-600 text-white' 
-      : 'bg-purple-100 hover:bg-purple-200 text-indigo-800',
-    link: darkMode ? 'text-fuchsia-400 hover:text-fuchsia-300' : 'text-fuchsia-600 hover:text-fuchsia-700',
-    divider: darkMode ? 'border-purple-800' : 'border-indigo-300',
-    progressActive: darkMode ? 'bg-fuchsia-500' : 'bg-fuchsia-600',
-    progressComplete: darkMode ? 'bg-green-500' : 'bg-green-600',
-    progressInactive: darkMode ? 'bg-gray-600' : 'bg-indigo-200'
+      ? 'bg-gray-800 hover:bg-gray-700 text-white border border-gray-700' 
+      : 'bg-white hover:bg-gray-100 text-indigo-700 border border-indigo-200',
+    
+    // Input styles
+    input: darkMode 
+      ? 'input-gradient-dark border-gray-700 text-white placeholder-gray-400' 
+      : 'input-gradient-light border-indigo-100 text-gray-800 placeholder-gray-500',
   };
 
   const questions = [
@@ -327,62 +684,42 @@ const ReputyTalentAgent = () => {
   ];
 
   return (
-    <div className={`min-h-screen ${themeStyles.background} ${themeStyles.text} font-sans transition-colors duration-300`}>
-      {/* Navigation Bar */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <div className="flex items-center">
-          <div className="mr-6">
-            <div className="flex items-center">
-              <div className="w-12 h-12 relative">
-                <div className="absolute w-4 h-4 bg-purple-500 rounded-full top-1 left-1"></div>
-                <div className="absolute w-4 h-4 bg-blue-400 rounded-full top-1 right-1"></div>
-                <div className="absolute w-4 h-4 bg-pink-400 rounded-full bottom-1 left-1"></div>
-              </div>
-              <span className={`ml-2 text-xl font-bold ${themeStyles.text}`}>Reputy.io Talent Agent</span>
-            </div>
+    <div className={`min-h-screen ${themeStyles.gradientBg}`}>
+      {/* Header with logo and dark mode toggle */}
+      <header className={`${themeStyles.headerGradient} py-4 px-6 shadow-lg`}>
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center space-x-2">
+            <h1 className="text-2xl font-bold text-white">Reputy.io</h1>
+            <span className="text-sm bg-white bg-opacity-20 px-2 py-1 rounded text-white">Talent Agent</span>
           </div>
-          <nav className="hidden md:flex space-x-6">
-            <a href="#" className={`hover:${themeStyles.link}`}>Products</a>
-            <a href="#" className={`hover:${themeStyles.link}`}>Use Cases</a>
-            <a href="#" className={`hover:${themeStyles.link}`}>Tutorial</a>
-            <a href="#" className={`hover:${themeStyles.link}`}>Community</a>
-          </nav>
-        </div>
-        <div className="flex items-center space-x-4">
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-full ${darkMode ? 'bg-gray-800 text-yellow-400' : 'bg-blue-100 text-indigo-600'}`}
-            aria-label="Toggle theme"
-          >
-            {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-
-          <a href="#" className={`hover:${themeStyles.link}`}>About</a>
-          <a href="#" className={`hover:${themeStyles.link}`}>Login</a>
-          <button className={`${themeStyles.buttonPrimary} px-6 py-2 rounded-md`}>
-            Try For Free
-          </button>
+          <div className="flex items-center space-x-6">
+            <nav className="flex items-center space-x-6">
+              <button className={`${darkMode ? 'button-gradient-dark' : 'button-gradient-light'} hover:opacity-90 text-white px-4 py-2 rounded-md`}>
+                Log In
+              </button>
+              <button className="border-2 border-white hover:bg-white hover:bg-opacity-10 text-white px-4 py-2 rounded-md transition-colors">
+                Sign Up
+              </button>
+            </nav>
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full hover:bg-white hover:bg-opacity-10 transition-colors ml-2"
+              aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {darkMode ? <Sun className="text-white" size={20} /> : <Moon className="text-white" size={20} />}
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Breadcrumb Navigation */}
-      <div className="px-6 py-4">
-        <div className="flex items-center space-x-2 text-sm">
-          <a href="#" className={themeStyles.link}>Home</a>
-          <span className={themeStyles.mutedText}>&gt;</span>
-          <a href="#" className={themeStyles.link}>Tools</a>
-          <span className={themeStyles.mutedText}>&gt;</span>
-          <span className={themeStyles.mutedText}>Career Questionnaire</span>
-        </div>
-      </div>
+      <main className="container mx-auto px-4 py-8">
 
-      {/* Main Content */}
-      <main className="px-6 py-8">
+
+        {/* Main Content */}
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-6">Reputy.io Talent Agent</h1>
-          <p className={`text-xl mb-6 ${themeStyles.subtext}`}>
-            Complete your career profile to get personalized CV feedback and interview coaching
+          <h1 className={`text-5xl font-bold mb-6 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Reputy.io Talent Agent</h1>
+          <p className={`text-xl mb-10 ${darkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+            Complete your career profile to get personalized soft skills development and interview coaching
           </p>
 
           {!isSubmitted ? (
@@ -406,54 +743,58 @@ const ReputyTalentAgent = () => {
               )}
             
               {/* Progress Indicator */}
-              <div className="flex justify-center mb-6 overflow-x-auto py-2">
+              <div className="flex justify-center mb-8">
                 <div className="flex space-x-1">
                   {questions.map((_, index) => (
-                    <div 
-                      key={index} 
-                      className={`w-2 h-2 mx-1 rounded-full ${
-                        index === currentStep ? themeStyles.progressActive : 
-                        index < currentStep ? themeStyles.progressComplete : themeStyles.progressInactive
+                    <div
+                      key={index}
+                      className={`w-2 h-2 rounded-full ${
+                        index < currentStep 
+                          ? darkMode ? 'bg-green-400' : 'bg-green-500' 
+                          : index === currentStep 
+                            ? darkMode ? 'bg-indigo-500' : 'bg-indigo-600' 
+                            : darkMode ? 'bg-gray-600 opacity-50' : 'bg-gray-300'
                       }`}
-                    ></div>
+                    />
                   ))}
                 </div>
               </div>
 
-              {/* Question Display */}
-              <div className={`${themeStyles.card} rounded-lg p-6 mb-6 text-left border ${themeStyles.cardBorder} backdrop-blur-sm max-w-2xl mx-auto`}>
-                <h2 className="text-2xl font-semibold mb-4">
-                  {questions[currentStep].question}
-                </h2>
-                <div className="relative">
-                  <textarea 
-                    className={`w-full p-4 rounded-lg ${themeStyles.input} focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none`}
+              {/* Question Card */}
+              <div 
+                className={`rounded-lg p-8 border max-w-2xl mx-auto ${darkMode ? 'bg-gray-900 bg-opacity-30 text-white border-purple-800 border-opacity-20' : 'bg-white text-gray-900 border-indigo-100 shadow-md'}`}
+              >
+                <h2 className={`text-2xl font-bold mb-6 text-left ${darkMode ? 'text-white' : 'text-gray-900'}`}>{questions[currentStep].question}</h2>
+                <p className={`text-sm text-left mb-2 ${darkMode ? 'text-gray-400' : 'text-indigo-700'}`}>Question {currentStep + 1} of {questions.length}</p>
+                
+                <div className={`rounded-lg overflow-hidden ${darkMode ? 'gradient-border-dark' : 'gradient-border-light'}`}>
+                  <textarea
+                    className={`w-full p-4 rounded-lg ${darkMode ? 'input-gradient-dark text-white placeholder-gray-400' : 'input-gradient-light text-gray-800 placeholder-gray-500'} border-0 focus:outline-none min-h-[120px] resize-none`}
                     placeholder={questions[currentStep].placeholder}
-                    rows={4}
                     value={textInput}
                     onChange={(e) => setTextInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                   />
                 </div>
-                <div className="mt-6 flex justify-between items-center">
+                
+                <div className="flex justify-between mt-6">
                   <div>
-                    <span className={`${themeStyles.mutedText} text-sm`}>
-                      Question {currentStep + 1} of {questions.length}
-                    </span>
+                    <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Press Enter to submit your answer and continue</p>
+                    <button 
+                      onClick={handleSkip}
+                      className={`text-sm ${darkMode ? 'text-gray-400 hover:text-white' : 'text-indigo-400 hover:text-indigo-500'} mt-2 block`}
+                    >
+                      Skip this question
+                    </button>
                   </div>
-                  <button 
+                  
+                  <button
                     onClick={handleNext}
-                    className={`${themeStyles.buttonPrimary} px-6 py-2 rounded-md flex items-center`}
+                    className={`${darkMode ? 'button-gradient-dark' : 'button-gradient-light'} hover:opacity-90 text-white px-6 py-3 rounded-md flex items-center`}
                     disabled={textInput.trim() === ''}
                   >
-                    {currentStep < questions.length - 1 ? 'Next' : (
-                      isLoading ? (
-                        <div className="flex items-center">
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                          <span>Processing...</span>
-                        </div>
-                      ) : 'Submit'
-                    )}
+                    Next
+                    <ArrowRight size={20} className="ml-2" />
                   </button>
                 </div>
               </div>
@@ -504,267 +845,36 @@ const ReputyTalentAgent = () => {
 
               {showChat ? (
                 // Chat Interface
-                <div className={`${themeStyles.card} rounded-lg p-6 mb-6 text-left border ${themeStyles.cardBorder} backdrop-blur-sm max-w-4xl mx-auto`}>
-                  <h2 className="text-3xl font-bold mb-6 text-center">Chat with Your AI Talent Agent</h2>
-                  
-                  {/* Chat Messages */}
-                  <div className="h-[400px] overflow-y-auto mb-4 p-4 rounded-lg border border-gray-300 bg-opacity-50 bg-gray-100 dark:bg-gray-800">
-                    {chatMessages.length === 0 ? (
-                      <div className="flex items-center justify-center h-full">
-                        <p className={`${themeStyles.mutedText} text-center`}>
-                          Your conversation will appear here. Start by asking a question about your career.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {chatMessages.map((message, index) => (
-                          <div 
-                            key={index} 
-                            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                          >
-                            <div 
-                              className={`max-w-[80%] p-3 rounded-lg ${
-                                message.role === 'user' 
-                                  ? `${darkMode ? 'bg-fuchsia-700' : 'bg-fuchsia-500'} text-white` 
-                                  : message.isError 
-                                    ? `${darkMode ? 'bg-red-900' : 'bg-red-100'} ${darkMode ? 'text-red-100' : 'text-red-900'}`
-                                    : `${darkMode ? 'bg-indigo-900' : 'bg-indigo-100'} ${darkMode ? 'text-white' : 'text-gray-800'}`
-                              }`}
-                            >
-                              <div className="flex items-center mb-1">
-                                <span className="mr-2">
-                                  {message.role === 'user' ? (
-                                    <User size={16} />
-                                  ) : (
-                                    <Bot size={16} />
-                                  )}
-                                </span>
-                                <span className="font-semibold">
-                                  {message.role === 'user' ? 'You' : 'AI Talent Agent'}
-                                </span>
-                              </div>
-                              <p className="whitespace-pre-line">{message.content}</p>
-                            </div>
-                          </div>
-                        ))}
-                        {/* Show typing indicator when AI is generating a response */}
-                        {isChatLoading && (
-                          <div className="flex justify-start">
-                            <div className={`max-w-[80%] p-3 rounded-lg ${darkMode ? 'bg-indigo-900' : 'bg-indigo-100'} ${darkMode ? 'text-white' : 'text-gray-800'}`}>
-                              <div className="flex items-center mb-1">
-                                <span className="mr-2">
-                                  <Bot size={16} />
-                                </span>
-                                <span className="font-semibold">
-                                  AI Talent Agent
-                                </span>
-                              </div>
-                              <div className="flex space-x-1 items-center h-6">
-                                <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-200 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-200 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                <div className="w-2 h-2 rounded-full bg-gray-400 dark:bg-gray-200 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        <div ref={chatEndRef} />
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Chat Input */}
-                  <div className="relative">
-                    <textarea
-                      className={`w-full p-3 pr-12 rounded-lg resize-none border ${themeStyles.input} focus:outline-none focus:ring-2 focus:ring-fuchsia-500`}
-                      placeholder="Ask me anything about your career..."
-                      rows="3"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      disabled={isChatLoading}
-                    />
-                    <button
-                      className={`absolute right-3 bottom-3 p-2 rounded-full ${themeStyles.buttonPrimary} disabled:opacity-50`}
-                      onClick={handleSendMessage}
-                      disabled={isChatLoading || chatInput.trim() === ''}
-                    >
-                      {isChatLoading ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <Send size={20} />
-                      )}
-                    </button>
-                  </div>
-                </div>
+                <ChatInterface 
+                  analysis={aiAnalysis.raw_text} 
+                  messages={chatMessages}
+                  isTyping={isChatLoading}
+                  onBack={() => setShowChat(false)}
+                  onSendMessage={async (message, context) => {
+                    // Add user message
+                    setChatMessages(prev => [...prev, { role: 'user', content: message }]);
+                    setIsChatLoading(true);
+                    
+                    try {
+                      // Send message to API
+                      const response = await sendChatMessage(message, chatMessages, context);
+                      
+                      // Add AI response
+                      setChatMessages(prev => [...prev, { role: 'assistant', content: response }]);
+                    } catch (error) {
+                      console.error('Error sending message:', error);
+                      setChatMessages(prev => [...prev, { 
+                        role: 'assistant', 
+                        content: 'Sorry, I encountered an error processing your request. Please try again.' 
+                      }]);
+                    } finally {
+                      setIsChatLoading(false);
+                    }
+                  }}
+                />
               ) : (
                 // Analysis Display
-                <div className="mt-8">
-                  {isLoading ? (
-                    // Full-screen loading indicator
-                    <div className="fixed inset-0 flex flex-col items-center justify-center z-50 bg-gray-900 bg-opacity-70 backdrop-blur-sm">
-                      <div className={`${themeStyles.card} p-8 rounded-xl shadow-2xl max-w-md mx-auto text-center`}>
-                        <div className="w-24 h-24 border-4 border-fuchsia-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-                        <h3 className="text-2xl font-bold mb-4">Analyzing Your Responses</h3>
-                        <p className="mb-2">Your AI talent agent is generating personalized career insights...</p>
-                        <p className="text-sm opacity-75">This may take up to 30 seconds.</p>
-                        
-                        {/* Loading progress animation */}
-                        <div className="mt-6 h-2 w-full bg-gray-200 rounded-full overflow-hidden dark:bg-gray-700">
-                          <div className="h-full bg-gradient-to-r from-purple-500 to-fuchsia-500 rounded-full animate-pulse" 
-                               style={{width: '100%'}}></div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : error ? (
-                    <div className={`p-4 rounded-lg ${darkMode ? 'bg-red-900' : 'bg-red-100'} border ${darkMode ? 'border-red-700' : 'border-red-400'} ${darkMode ? 'text-red-200' : 'text-red-700'} mb-6`}>
-                      <h3 className="font-bold text-lg mb-2">Error</h3>
-                      <p>{error}</p>
-                      <button 
-                        className={`${themeStyles.buttonPrimary} px-4 py-2 rounded-md mt-4`}
-                        onClick={() => handleSubmit(answers)}
-                      >
-                        Try Again
-                      </button>
-                    </div>
-                  ) : aiAnalysis ? (
-                    <div className="space-y-8">
-                      <h2 className="text-3xl font-bold mb-6 text-center">Your Career Analysis</h2>
-                      
-                      {/* Professional Profile */}
-                      <div>
-                        <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">Professional Profile Summary</h3>
-                        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                          <p className="whitespace-pre-line">
-                            {aiAnalysis.sections.professional_profile || 
-                             aiAnalysis.sections.general || 
-                             "No professional profile summary available."}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Key Strengths */}
-                      {(aiAnalysis.sections.key_strengths || aiAnalysis.sections.general) && (
-                        <div>
-                          <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">Key Strengths & Unique Selling Points</h3>
-                          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                            <p className="whitespace-pre-line">
-                              {aiAnalysis.sections.key_strengths || 
-                               (aiAnalysis.sections.general ? "Please see the general analysis above." : "No strengths analysis available.")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Areas for Development */}
-                      {(aiAnalysis.sections.areas_for_development || aiAnalysis.sections.general) && (
-                        <div>
-                          <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">Areas for Professional Development</h3>
-                          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                            <p className="whitespace-pre-line">
-                              {aiAnalysis.sections.areas_for_development || 
-                               (aiAnalysis.sections.general ? "Please see the general analysis above." : "No development areas analysis available.")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* CV Recommendations */}
-                      {(aiAnalysis.sections.cv_recommendations || aiAnalysis.sections.general) && (
-                        <div>
-                          <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">CV Improvement Recommendations</h3>
-                          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                            <p className="whitespace-pre-line">
-                              {aiAnalysis.sections.cv_recommendations || 
-                               (aiAnalysis.sections.general ? "Please see the general analysis above." : "No CV recommendations available.")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Job Search Strategy */}
-                      {(aiAnalysis.sections.job_search_strategy || aiAnalysis.sections.general) && (
-                        <div>
-                          <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">Job Search Strategy</h3>
-                          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                            <p className="whitespace-pre-line">
-                              {aiAnalysis.sections.job_search_strategy || 
-                               (aiAnalysis.sections.general ? "Please see the general analysis above." : "No job search strategy available.")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Additional Skills */}
-                      {(aiAnalysis.sections.additional_skills || aiAnalysis.sections.general) && (
-                        <div>
-                          <h3 className="text-2xl font-semibold mb-3 text-fuchsia-500">Recommended Skills & Certifications</h3>
-                          <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-800' : 'bg-white'} border ${themeStyles.cardBorder}`}>
-                            <p className="whitespace-pre-line">
-                              {aiAnalysis.sections.additional_skills || 
-                               (aiAnalysis.sections.general ? "Please see the general analysis above." : "No additional skills recommendations available.")}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Chat with AI Button */}
-                      <div className="flex justify-center mt-8">
-                        <button 
-                          className={`${themeStyles.buttonPrimary} px-6 py-4 rounded-md text-lg flex items-center shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1`}
-                          onClick={() => setShowChat(true)}
-                        >
-                          <MessageSquare className="mr-2" size={24} />
-                          Chat with Your AI Talent Agent
-                        </button>
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex justify-center space-x-4 mt-6">
-                        <button 
-                          className={`${themeStyles.buttonSecondary} px-6 py-3 rounded-md`}
-                          onClick={() => {
-                            // Download functionality
-                            const element = document.createElement("a");
-                            const file = new Blob([
-                              `# Career Analysis Report\n\n` +
-                              `## Professional Profile\n${aiAnalysis.sections.professional_profile || aiAnalysis.sections.general || "No data"}\n\n` +
-                              `## Key Strengths\n${aiAnalysis.sections.key_strengths || "No data"}\n\n` +
-                              `## Areas for Development\n${aiAnalysis.sections.areas_for_development || "No data"}\n\n` +
-                              `## CV Recommendations\n${aiAnalysis.sections.cv_recommendations || "No data"}\n\n` +
-                              `## Job Search Strategy\n${aiAnalysis.sections.job_search_strategy || "No data"}\n\n` +
-                              `## Recommended Skills\n${aiAnalysis.sections.additional_skills || "No data"}\n\n` +
-                              `\nGenerated by Reputy.io Talent Agent on ${new Date().toLocaleDateString()}`
-                            ], { type: 'text/plain' });
-                            element.href = URL.createObjectURL(file);
-                            element.download = "career-analysis-report.md";
-                            document.body.appendChild(element);
-                            element.click();
-                            document.body.removeChild(element);
-                          }}
-                        >
-                          Download Analysis
-                        </button>
-                        <button 
-                          className={`${themeStyles.buttonSecondary} px-6 py-3 rounded-md`}
-                          onClick={() => {
-                            setIsSubmitted(false);
-                            setCurrentStep(0);
-                            setAnswers({});
-                            setTextInput('');
-                            setAiAnalysis(null);
-                            setChatMessages([]);
-                            setChatInput('');
-                            setShowChat(false);
-                          }}
-                        >
-                          Start New Assessment
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p>No analysis data available.</p>
-                  )}
-                </div>
+                <AnalysisDisplay analysis={aiAnalysis.raw_text} />
               )}
             </>
           )}
@@ -774,7 +884,7 @@ const ReputyTalentAgent = () => {
       {/* Social Proof */}
       <div className="mt-20 px-6 py-8">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Trusted by professionals from leading companies</h2>
+          <h2 className={`text-3xl font-bold text-center mb-12 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Trusted by professionals from leading companies</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 justify-items-center items-center">
             {/* Company logos would go here */}
             <div className={`${themeStyles.mutedText} text-xl font-bold`}>Company 1</div>
@@ -786,40 +896,8 @@ const ReputyTalentAgent = () => {
       </div>
 
       {/* Footer */}
-      <footer className={`mt-20 px-6 py-12 border-t ${themeStyles.divider}`}>
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-            <h3 className="text-xl font-bold mb-4">Reputy.io Talent Agent</h3>
-            <p className={`${themeStyles.mutedText} mb-4`}>
-              AI-powered career coaching to help you land your dream job.
-            </p>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4">Products</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>CV Analysis</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Interview Coach</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Career Planner</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4">Resources</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Blog</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Guides</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Support</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-4">Company</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>About</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Careers</a></li>
-              <li><a href="#" className={`${themeStyles.mutedText} hover:${themeStyles.link}`}>Contact</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="mt-12 text-center">
+      <footer className={`mt-20 px-6 py-6 border-t ${themeStyles.divider}`}>
+        <div className="text-center">
           <p className={themeStyles.mutedText}>&copy; 2025 Reputy.io. All rights reserved.</p>
         </div>
       </footer>

@@ -60,7 +60,7 @@ export const submitQuestionnaire = async (questionnaireData) => {
 export const generateHuggingFaceAnalysis = async (questionnaireData) => {
   try {
     // Format the questionnaire data into a prompt for the model
-    const prompt = formatQuestionnairePrompt(questionnaireData);
+    const prompt = formatAnalysisPrompt(questionnaireData.answers);
     console.log("Sending prompt to Hugging Face:", prompt);
     
     const response = await fetch(HF_API_URL, {
@@ -106,38 +106,46 @@ export const generateHuggingFaceAnalysis = async (questionnaireData) => {
 
 /**
  * Format questionnaire data into a prompt for the AI model
- * @param {Object} questionnaireData - User's questionnaire responses
+ * @param {Object} answers - User's questionnaire responses
  * @returns {string} - Formatted prompt
  */
-const formatQuestionnairePrompt = (questionnaireData) => {
-  // Extract the answers from the questionnaire data
-  const answers = questionnaireData.answers || {};
+export const formatAnalysisPrompt = (answers) => {
+  // Extract relevant information from the answers
+  const profile = extractProfileFromAnswers(answers);
   
-  // Create a formatted prompt with all the answers
-  let promptText = `You are a professional career advisor and talent agent. Based on the following information about a person, provide a detailed career analysis and advice. Focus on their strengths, areas for improvement, and specific recommendations for their CV/resume and job search strategy.\n\n`;
-  
-  // Add each answer to the prompt
-  Object.entries(answers).forEach(([questionId, answer]) => {
-    // Format the question ID to be more readable
-    const formattedQuestionId = questionId
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-    
-    promptText += `${formattedQuestionId}: ${answer}\n\n`;
-  });
-  
-  // Add specific instructions for the analysis
-  promptText += `\nBased on the information above, please provide:\n`;
-  promptText += `1. A summary of the person's professional profile\n`;
-  promptText += `2. Key strengths and unique selling points\n`;
-  promptText += `3. Areas for professional development\n`;
-  promptText += `4. Specific recommendations for improving their CV/resume\n`;
-  promptText += `5. Job search strategy and potential roles to target\n`;
-  promptText += `6. Additional skills or certifications that would enhance their profile\n\n`;
-  promptText += `Please provide detailed, actionable advice that is personalized to their specific situation.`;
-  
-  return promptText;
+  return `
+You are a professional career coach and talent agent with expertise in providing personalized career advice. 
+Please analyze the following information about this individual and provide detailed, actionable advice.
+
+## User Profile Information:
+${profile}
+
+## Instructions:
+Provide a comprehensive career analysis and advice with the following sections:
+
+### Summary of the Professional Profile
+Provide a concise summary of their background, experience, and career goals based on the information provided.
+
+### Key Strengths and Unique Selling Points
+Identify 3-5 key strengths and unique qualities that make them stand out in their field.
+
+### Areas for Professional Development
+Suggest 3-4 specific areas where they could develop further to enhance their career prospects.
+
+### Specific Recommendations for Improving Their CV/Resume
+Provide actionable advice on how to enhance their resume to better showcase their skills and experience.
+
+### Job Search Strategy and Potential Roles to Target
+Recommend specific job titles they should consider and strategies for finding opportunities.
+
+### Interview Preparation Advice
+Provide tailored advice for common interview questions they might face and how to prepare effectively.
+
+### Long-term Career Development Plan
+Suggest a 3-5 year career development roadmap with specific milestones and goals.
+
+Write in a clear, professional tone. Be specific and personalized to their situation rather than generic. Focus on actionable advice that they can implement immediately. Do not include any section numbers or repeat the section titles in your response.
+`;
 };
 
 /**
@@ -211,13 +219,13 @@ export const generateAnalysis = async (id) => {
  */
 export const sendChatMessage = async (message, chatHistory, context) => {
   try {
-    // Format the chat history for the prompt
-    const formattedChatHistory = chatHistory
-      .map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`)
-      .join('\n');
+    // Format the chat history
+    const formattedChatHistory = chatHistory.map(msg => 
+      `${msg.role === 'user' ? 'User' : 'Career Coach'}: ${msg.content}`
+    ).join('\n');
     
     // Create a prompt that includes the user's profile information and chat history
-    const prompt = formatChatPrompt(message, formattedChatHistory, context);
+    const prompt = formatChatPrompt(context.userProfile, formattedChatHistory, message);
     
     // Send the prompt to the Hugging Face API
     const response = await fetch(HF_API_URL, {
@@ -255,38 +263,39 @@ export const sendChatMessage = async (message, chatHistory, context) => {
 
 /**
  * Helper function to format the chat prompt with context
- * @param {string} message - User's current message
+ * @param {string} userProfile - User's profile information
  * @param {string} chatHistory - Previous chat messages
- * @param {Object} context - User's questionnaire responses and analysis for context
+ * @param {string} newMessage - User's current message
  * @returns {string} - Formatted prompt
  */
-const formatChatPrompt = (message, chatHistory, context) => {
-  const { answers, analysis } = context || {};
-  
-  // Format the user profile information from questionnaire answers
-  let userProfile = '';
-  if (answers) {
-    userProfile = Object.entries(answers)
-      .map(([key, value]) => `${key.replace(/_/g, ' ')}: ${value}`)
-      .join('\n');
-  }
-  
-  // Construct the full prompt with context
-  let prompt = `You are an AI talent agent helping a user with their career development. 
-  
-USER PROFILE INFORMATION:
-${userProfile || 'No profile information available.'}
+export const formatChatPrompt = (userProfile, chatHistory, newMessage) => {
+  return `
+You are a professional career coach and talent agent with expertise in providing personalized career advice.
+You are having a conversation with a user about their career. Be helpful, specific, and provide actionable advice.
 
-${analysis ? `CAREER ANALYSIS:
-${analysis}` : ''}
+## User Profile Information:
+${userProfile}
 
-PREVIOUS CONVERSATION:
-${chatHistory || 'This is the start of the conversation.'}
+## Previous Conversation:
+${chatHistory}
 
-User: ${message}
+## New Message from User:
+${newMessage}
+
+## Instructions:
+- Respond directly to the user's question or comment.
+- Provide detailed, actionable advice that is personalized to their specific situation.
+- Write in a clear, professional tone.
+- If they ask about specific career paths, provide insights about required skills, education, and potential growth opportunities.
+- If they ask about resume or interview advice, give specific examples and techniques.
+- Always maintain a supportive and encouraging tone while being honest and realistic.
+- When appropriate, ask follow-up questions to better understand their situation.
+- Format your response with clear headings using ### for main sections when appropriate.
+- Do not use numbered lists at the start of paragraphs.
+- Do not repeat section titles in your response.
+
+Your response should be well-structured, easy to read, and focused on providing value to the user.
 `;
-
-  return prompt;
 };
 
 /**
@@ -305,4 +314,33 @@ const extractAIResponse = (fullResponse) => {
   
   // Clean up any trailing conversation markers
   return aiResponsePart.split(/\nUser:/)[0].trim();
+};
+
+// Helper function to extract a profile from questionnaire answers
+const extractProfileFromAnswers = (answers) => {
+  let profile = '';
+  
+  // Map questions to profile sections
+  const questionMappings = {
+    'What is your current job title?': 'Current Position',
+    'How many years of experience do you have in your field?': 'Experience',
+    'What are your top technical skills?': 'Technical Skills',
+    'What are your top soft skills?': 'Soft Skills',
+    'What industry do you work in or want to work in?': 'Target Industry',
+    'What are your short-term career goals (next 1-2 years)?': 'Short-term Goals',
+    'What are your long-term career goals (3-5 years)?': 'Long-term Goals',
+    'What has been your biggest challenge in past interviews?': 'Interview Challenges',
+    'What is your educational background?': 'Education',
+    'What specific area of your career would you like advice on?': 'Areas Seeking Advice'
+  };
+  
+  // Build the profile from the answers
+  for (const [question, answer] of Object.entries(answers)) {
+    const section = questionMappings[question] || question;
+    if (answer && answer.trim() !== '') {
+      profile += `**${section}**: ${answer}\n`;
+    }
+  }
+  
+  return profile;
 };
