@@ -1,6 +1,6 @@
 # AI-Talent-Agent
 AI-powered career and soft skills training agent designed to help users achieve their career goals. Like e-Shadow,it follows the user, seamlessly integrates with their daily tools and learns their behaviour. 
-The Agent is context-aware and provides instant personalised training without distracting from work or leasure. It automates repetitive tasks like updating the CV and collecting fresh facts from daily life to prove skills.
+The Agent is context-aware and provides instant personalised training without distracting from work or leisure. It automates repetitive tasks like updating the CV and collecting fresh facts from daily life to prove skills.
 
 How it works:\
 – using aci.dev tool, it retrieves data from users' digital channels, like Twitter, LinkedIn, Apps, Google Calendar, in the private layer visible to the user only\
