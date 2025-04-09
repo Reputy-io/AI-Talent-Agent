@@ -15,24 +15,24 @@ Disclaimer: some features are in development and require budgeting for APIs and 
 ## Features
 
 ### **Personalised Career Guidance**
-- Users complete a structured questionnaire about their professional background, skills, and goals.\
-- The agent generates personalised analyses, including:\
-  - Interview strategies and tips.\
+- Users complete a structured questionnaire about their professional background, skills, and goals.
+- The agent generates personalised analyses, including:
+  - Interview strategies and tips.
   - Soft skill improvement strategies.
 
 ### **Interactive AI Assistance**
-- Users can ask specific questions, such as:\
+- Users can ask specific questions, such as:
   > *"As an introvert, I sometimes struggle with public speaking. How can I improve this?"*
 - The Talent Agent provides structured, step-by-step responses based on:
-  - Its internal knowledge base.\
-  - Personalised user data.\
+  - Its internal knowledge base.
+  - Personalised user data.
   - Curated resources (web search integration is currently under development).
 
 ### **Automated Resource Curation**
 - The agent eliminates the need for manual research by pulling the most relevant resources (e.g., online courses) from the web and delivering them directly to users.
 
 ### **Responsive User Interface**
-- Features a sleek and modern UI with both **dark** and **light modes**.\
+- Features a sleek and modern UI with both **dark** and **light modes**.
 - Combines a multi-step assessment form with an **interactive chat interface** for real-time conversations with the AI agent.
 
 ---
