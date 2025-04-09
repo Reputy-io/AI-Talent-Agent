@@ -3,11 +3,11 @@ AI-powered career and soft skills training agent designed to help users achieve 
 The Agent is context-aware and provides instant personalised training without distracting from work or leasure. It automates repetitive tasks like updating the CV and collecting fresh facts from daily life to prove skills.
 
 How it works: 
-– using aci.dev tool, it retrieves data from users' digital channels, like Twitter, LinkedIn, Apps, Google Calendar, in the private layer visible to the user only
-– analyses user's behaviours, finds evidence of skills and provides meaningful insights
-– connects with training providers to nudge growth
-– assesses soft skills using external taxonomies, such as Education 4.0 or SkillsBuilder and feeds evidence into a Talent Wallet
-– performs sanity and privacy checks with the user
+– using aci.dev tool, it retrieves data from users' digital channels, like Twitter, LinkedIn, Apps, Google Calendar, in the private layer visible to the user only\
+– analyses user's behaviours, finds evidence of skills and provides meaningful insights\
+– connects with training providers to nudge growth\
+– assesses soft skills using external taxonomies, such as Education 4.0 or SkillsBuilder and feeds evidence into a Talent Wallet\
+– performs sanity and privacy checks with the user\
 – sends CV or Talent Wallet to employers and asks for feedback.
 
 Disclaimer: some features are in development and require budgeting for APIs and OpenAI credits to train and test the models. API.dev tool was tested with Claude and Open.ai but faced free credit limitations.
